@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GlobalScore Live
+
+A real-time live sports dashboard featuring cricket and football scores, schedules, and news. Built with Next.js, TypeScript, Tailwind CSS, and Framer Motion.
+
+## Features
+
+- **Live Scores**: Real-time cricket and football match updates
+- **Match Schedules**: Upcoming fixtures for the next 7 days
+- **Sport-Specific Branding**: Green for cricket (🏏), blue for football (⚽)
+- **News Section**: Latest sports news from NewsAPI
+- **Multiple Tabs**: Live, Upcoming, Trending, and Finished matches
+- **Responsive Design**: Mobile-friendly with bottom navigation
+
+## Tech Stack
+
+- **Framework**: Next.js 16 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **APIs**: AllSportsAPI, CricAPI, NewsAPI
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/globalscore-live.git
+cd globalscore-live
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Add your API keys to `.env.local`:
+```env
+ALLSPORTS_API_KEY=your_allsports_api_key_here
+CRICAPI_KEY=your_cricapi_key_here
+NEWSAPI_KEY=your_newsapi_key_here
+```
 
-## Learn More
+Get your API keys from:
+- [AllSportsAPI](https://allsportsapi.com/)
+- [CricAPI](https://www.cricapi.com/)
+- [NewsAPI](https://newsapi.org/)
 
-To learn more about Next.js, take a look at the following resources:
+5. Run the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API Security
 
-## Deploy on Vercel
+This project uses a Next.js Route Handler (`/api/sports`) to proxy API requests. API keys are stored server-side in `.env.local` and never exposed to the client. The `.env.local` file is automatically ignored by Git.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Import your project on [Vercel](https://vercel.com)
+3. Add environment variables in Vercel dashboard
+4. Deploy!
+
+## License
+
+MIT License
+
