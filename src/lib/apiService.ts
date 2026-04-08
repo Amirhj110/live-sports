@@ -1,6 +1,14 @@
 import { Match, SportType, Team, MatchEvent, Player } from '@/types/match';
 
-const LOCAL_API_URL = '/api/sports'; // Local Route Handler - API key stays server-side
+// API Keys - Hardcoded for GitHub Pages deployment
+const ALLSPORTS_API_KEY = 'd09a6c7f46msh003f3f724580917p1a11d6jsnb95458edf64d';
+const CRICAPI_KEY = 'f83068c1-8071-42b5-b698-744f85a96ae6';
+const NEWSAPI_KEY = 'fa20f937e6354fcca7dfb82c0a4f2b9a';
+
+// Base URLs
+const ALLSPORTS_BASE_URL = 'https://allsportsapi.com/api';
+const CRICAPI_BASE_URL = 'https://api.cricapi.com/v1';
+const NEWSAPI_BASE_URL = 'https://newsapi.org/v2';
 
 interface AllSportsMatch {
   id: string;
@@ -131,9 +139,8 @@ function mapAllSportsToMatch(data: any, sport: SportType): Match {
 // Fetch live cricket matches
 export async function fetchLiveCricketMatches(): Promise<Match[]> {
   try {
-    const response = await fetch(`${LOCAL_API_URL}?sport=cricket&type=live`, {
-      next: { revalidate: 60 },
-    });
+    const cricapiUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
+    const response = await fetch(cricapiUrl, { headers: { 'Accept': 'application/json' } });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
@@ -141,9 +148,49 @@ export async function fetchLiveCricketMatches(): Promise<Match[]> {
 
     const data = await response.json();
     
-    // Data is already transformed by Route Handler
-    const matches = (data.result || [])
-      .filter((m: any) => m.sport === 'cricket') as Match[];
+    if (data.status === 'failure') {
+      console.error('CricAPI error:', data.reason);
+      return [];
+    }
+
+    // Transform API response to Match type
+    const matches = (data.data || []).map((m: any) => {
+      const homeTeamInfo = m.teamInfo?.find((t: any) => t.name === m.teams?.[0]) || {};
+      const awayTeamInfo = m.teamInfo?.find((t: any) => t.name === m.teams?.[1]) || {};
+      
+      return {
+        id: m.id,
+        sport: 'cricket' as const,
+        league: m.series || 'International',
+        status: getCricketStatus(m.status),
+        date: m.date || new Date().toISOString().split('T')[0],
+        time: m.dateTimeGMT ? new Date(m.dateTimeGMT).toLocaleTimeString() : 'TBD',
+        homeTeam: {
+          id: homeTeamInfo.id || m.teams?.[0],
+          name: m.teams?.[0] || 'TBD',
+          shortName: homeTeamInfo.shortname || m.teams?.[0]?.substring(0, 3).toUpperCase(),
+          score: m.score?.[0]?.r || '0',
+          wickets: m.score?.[0]?.w || '0',
+          overs: m.score?.[0]?.o || '0',
+          color: '#1e40af',
+          flag: homeTeamInfo.img || null,
+        },
+        awayTeam: {
+          id: awayTeamInfo.id || m.teams?.[1],
+          name: m.teams?.[1] || 'TBD',
+          shortName: awayTeamInfo.shortname || m.teams?.[1]?.substring(0, 3).toUpperCase(),
+          score: m.score?.[1]?.r || '0',
+          wickets: m.score?.[1]?.w || '0',
+          overs: m.score?.[1]?.o || '0',
+          color: '#dc2626',
+          flag: awayTeamInfo.img || null,
+        },
+        currentTime: m.status || '-',
+        venue: m.venue || 'Unknown Venue',
+        events: [],
+        streamUrl: null,
+      };
+    });
     
     // Prioritize PSL and International matches
     return matches.sort((a: Match, b: Match) => {
@@ -164,11 +211,35 @@ export async function fetchLiveCricketMatches(): Promise<Match[]> {
   }
 }
 
+// Helper function for cricket status
+function getCricketStatus(status: string): 'live' | 'upcoming' | 'finished' {
+  if (!status) return 'upcoming';
+  const s = status.toLowerCase();
+  if (s.includes('live') || s.includes('stumps') || s.includes('innings break') || s.includes('lunch') || s.includes('tea') || s.includes('match started') || s.includes('in progress')) return 'live';
+  if (s.includes('ended') || s.includes('completed') || s.includes('finished') || s.includes('won by') || s.includes('match over')) return 'finished';
+  return 'upcoming';
+}
+
+// Helper function for football/basketball status
+function getFootballStatus(status: string): 'live' | 'upcoming' | 'finished' {
+  if (!status) return 'upcoming';
+  const s = status.toLowerCase();
+  if (s.includes('live') || s.includes('first half') || s.includes('second half') || s.includes('half time')) return 'live';
+  if (s.includes('finished') || s.includes('completed') || s.includes('ended')) return 'finished';
+  return 'upcoming';
+}
+
 // Fetch live football matches
 export async function fetchLiveFootballMatches(): Promise<Match[]> {
   try {
-    const response = await fetch(`${LOCAL_API_URL}?sport=football&type=live`, {
-      next: { revalidate: 60 },
+    const date = new Date().toISOString().split('T')[0];
+    const fullUrl = `${ALLSPORTS_BASE_URL}/football/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    
+    const response = await fetch(fullUrl, {
+      headers: {
+        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Host': 'allsportsapi.com',
+      },
     });
 
     if (!response.ok) {
@@ -177,9 +248,34 @@ export async function fetchLiveFootballMatches(): Promise<Match[]> {
 
     const data = await response.json();
     
-    // Data is already transformed by Route Handler
-    const matches = (data.result || [])
-      .filter((m: any) => m.sport === 'football') as Match[];
+    const matches = (data.result || []).map((m: any) => ({
+      id: m.event_key,
+      sport: 'football' as const,
+      league: m.league_name || 'Unknown League',
+      status: getFootballStatus(m.event_status),
+      date: m.event_date || new Date().toISOString(),
+      time: m.event_time || 'TBD',
+      homeTeam: {
+        id: m.event_home_team,
+        name: m.event_home_team || 'Home',
+        shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[0]?.trim() || m.event_live || '0',
+        color: '#2563eb',
+        flag: null,
+      },
+      awayTeam: {
+        id: m.event_away_team,
+        name: m.event_away_team || 'Away',
+        shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[1]?.trim() || '0',
+        color: '#dc2626',
+        flag: null,
+      },
+      currentTime: m.event_status || '-',
+      venue: m.event_stadium || 'Unknown Venue',
+      events: [],
+      streamUrl: null,
+    }));
     
     // Prioritize major leagues
     const majorLeagues = ['premier league', 'la liga', 'serie a', 'bundesliga', 'champions league'];
@@ -197,22 +293,94 @@ export async function fetchLiveFootballMatches(): Promise<Match[]> {
 // Fetch scheduled/upcoming matches
 export async function fetchScheduledMatches(): Promise<Match[]> {
   try {
-    const [cricketScheduled, footballScheduled] = await Promise.all([
-      fetch(`${LOCAL_API_URL}?sport=cricket&type=scheduled`, {
-        next: { revalidate: 300 },
-      }).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${LOCAL_API_URL}?sport=football&type=scheduled`, {
-        next: { revalidate: 300 },
-      }).then(r => r.ok ? r.json() : []).catch(() => []),
-    ]);
+    const date = new Date().toISOString().split('T')[0];
+    
+    // Fetch cricket scheduled
+    const cricketUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
+    const cricketResponse = await fetch(cricketUrl).catch(() => null);
+    let cricketMatches: Match[] = [];
+    if (cricketResponse?.ok) {
+      const cricketData = await cricketResponse.json();
+      cricketMatches = (cricketData.data || [])
+        .filter((m: any) => {
+          const status = getCricketStatus(m.status);
+          return status === 'upcoming';
+        })
+        .map((m: any) => ({
+          id: m.id,
+          sport: 'cricket' as const,
+          league: m.series || 'International',
+          status: 'upcoming' as const,
+          date: m.date || new Date().toISOString().split('T')[0],
+          time: m.dateTimeGMT ? new Date(m.dateTimeGMT).toLocaleTimeString() : 'TBD',
+          homeTeam: {
+            id: m.teams?.[0],
+            name: m.teams?.[0] || 'TBD',
+            shortName: m.teams?.[0]?.substring(0, 3).toUpperCase(),
+            score: '0',
+            color: '#1e40af',
+            flag: null,
+          },
+          awayTeam: {
+            id: m.teams?.[1],
+            name: m.teams?.[1] || 'TBD',
+            shortName: m.teams?.[1]?.substring(0, 3).toUpperCase(),
+            score: '0',
+            color: '#dc2626',
+            flag: null,
+          },
+          currentTime: 'Scheduled',
+          venue: m.venue || 'Unknown Venue',
+          events: [],
+          streamUrl: null,
+        }));
+    }
 
-    // Data is already transformed by Route Handler
-    const cricketMatches = (cricketScheduled.result || [])
-      .filter((m: any) => m.sport === 'cricket') as Match[];
-    const footballMatches = (footballScheduled.result || [])
-      .filter((m: any) => m.sport === 'football') as Match[];
+    // Fetch football scheduled
+    const footballUrl = `${ALLSPORTS_BASE_URL}/football/?met=Fixtures&APIkey=${ALLSPORTS_API_KEY}&from=${date}&to=${date}`;
+    const footballResponse = await fetch(footballUrl, {
+      headers: {
+        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Host': 'allsportsapi.com',
+      },
+    }).catch(() => null);
+    
+    let footballMatches: Match[] = [];
+    if (footballResponse?.ok) {
+      const footballData = await footballResponse.json();
+      footballMatches = (footballData.result || [])
+        .filter((m: any) => getFootballStatus(m.event_status) === 'upcoming')
+        .map((m: any) => ({
+          id: m.event_key,
+          sport: 'football' as const,
+          league: m.league_name || 'Unknown League',
+          status: 'upcoming' as const,
+          date: m.event_date || new Date().toISOString(),
+          time: m.event_time || 'TBD',
+          homeTeam: {
+            id: m.event_home_team,
+            name: m.event_home_team || 'Home',
+            shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
+            score: '0',
+            color: '#2563eb',
+            flag: null,
+          },
+          awayTeam: {
+            id: m.event_away_team,
+            name: m.event_away_team || 'Away',
+            shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
+            score: '0',
+            color: '#dc2626',
+            flag: null,
+          },
+          currentTime: 'Scheduled',
+          venue: m.event_stadium || 'Unknown Venue',
+          events: [],
+          streamUrl: null,
+        }));
+    }
 
-    return [...cricketMatches, ...footballMatches].filter(m => m.status === 'upcoming');
+    return [...cricketMatches, ...footballMatches];
   } catch (error) {
     console.error('Error fetching scheduled matches:', error);
     return [];

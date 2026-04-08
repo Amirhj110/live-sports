@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-static';
 export const revalidate = 3600;
 
-// API Keys
-const ALLSPORTS_API_KEY = process.env.ALLSPORTS_API_KEY?.trim() || '';
-const CRICAPI_KEY = process.env.CRICAPI_KEY?.trim() || '';
-const NEWSAPI_KEY = process.env.NEWSAPI_KEY?.trim() || '';
+// API Keys - Hardcoded for GitHub Pages deployment
+// ⚠️ WARNING: These keys are exposed in client-side code
+const ALLSPORTS_API_KEY = 'd09a6c7f46msh003f3f724580917p1a11d6jsnb95458edf64d';
+const CRICAPI_KEY = 'f83068c1-8071-42b5-b698-744f85a96ae6';
+const NEWSAPI_KEY = 'fa20f937e6354fcca7dfb82c0a4f2b9a';
 
 // Base URLs
 const ALLSPORTS_BASE_URL = 'https://allsportsapi.com/api';
