@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "export": "next build",
-    "deploy": "gh-pages -d dist"
+    "predeploy": "npm run build && copy .nojekyll dist\\",
+    "deploy": "gh-pages -d dist --nojekyll"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",
