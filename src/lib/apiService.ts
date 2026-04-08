@@ -1,4 +1,4 @@
-import { Match, SportType, Team, MatchEvent, Player } from '@/types/match';
+import { Match, SportType, Team, MatchEvent, Player, NewsArticle } from '@/types/match';
 
 // API Keys - Hardcoded for GitHub Pages deployment
 const ALLSPORTS_API_KEY = 'd09a6c7f46msh003f3f724580917p1a11d6jsnb95458edf64d';
@@ -395,6 +395,135 @@ export async function fetchAllLiveMatches(): Promise<Match[]> {
   ]);
   
   return [...cricket, ...football];
+}
+
+// Fetch finished/recently completed matches
+export async function fetchFinishedMatches(): Promise<Match[]> {
+  try {
+    const date = new Date().toISOString().split('T')[0];
+    
+    // Fetch cricket finished matches
+    const cricketUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
+    const cricketResponse = await fetch(cricketUrl).catch(() => null);
+    let cricketMatches: Match[] = [];
+    if (cricketResponse?.ok) {
+      const cricketData = await cricketResponse.json();
+      cricketMatches = (cricketData.data || [])
+        .filter((m: any) => {
+          const status = getCricketStatus(m.status);
+          return status === 'finished';
+        })
+        .map((m: any) => ({
+          id: m.id,
+          sport: 'cricket' as const,
+          league: m.series || 'International',
+          status: 'finished' as const,
+          date: m.date || new Date().toISOString().split('T')[0],
+          time: m.dateTimeGMT ? new Date(m.dateTimeGMT).toLocaleTimeString() : 'TBD',
+          homeTeam: {
+            id: m.teams?.[0],
+            name: m.teams?.[0] || 'TBD',
+            shortName: m.teams?.[0]?.substring(0, 3).toUpperCase(),
+            score: m.score?.[0]?.r || '0',
+            wickets: m.score?.[0]?.w || '0',
+            overs: m.score?.[0]?.o || '0',
+            color: '#1e40af',
+            flag: null,
+          },
+          awayTeam: {
+            id: m.teams?.[1],
+            name: m.teams?.[1] || 'TBD',
+            shortName: m.teams?.[1]?.substring(0, 3).toUpperCase(),
+            score: m.score?.[1]?.r || '0',
+            wickets: m.score?.[1]?.w || '0',
+            overs: m.score?.[1]?.o || '0',
+            color: '#dc2626',
+            flag: null,
+          },
+          currentTime: m.status || 'Finished',
+          venue: m.venue || 'Unknown Venue',
+          events: [],
+          streamUrl: null,
+        }));
+    }
+
+    // Fetch football finished matches
+    const footballUrl = `${ALLSPORTS_BASE_URL}/football/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    const footballResponse = await fetch(footballUrl, {
+      headers: {
+        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Host': 'allsportsapi.com',
+      },
+    }).catch(() => null);
+    
+    let footballMatches: Match[] = [];
+    if (footballResponse?.ok) {
+      const footballData = await footballResponse.json();
+      footballMatches = (footballData.result || [])
+        .filter((m: any) => getFootballStatus(m.event_status) === 'finished')
+        .map((m: any) => ({
+          id: m.event_key,
+          sport: 'football' as const,
+          league: m.league_name || 'Unknown League',
+          status: 'finished' as const,
+          date: m.event_date || new Date().toISOString(),
+          time: m.event_time || 'TBD',
+          homeTeam: {
+            id: m.event_home_team,
+            name: m.event_home_team || 'Home',
+            shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
+            score: m.event_final_result?.split('-')[0]?.trim() || '0',
+            color: '#2563eb',
+            flag: null,
+          },
+          awayTeam: {
+            id: m.event_away_team,
+            name: m.event_away_team || 'Away',
+            shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
+            score: m.event_final_result?.split('-')[1]?.trim() || '0',
+            color: '#dc2626',
+            flag: null,
+          },
+          currentTime: 'Finished',
+          venue: m.event_stadium || 'Unknown Venue',
+          events: [],
+          streamUrl: null,
+        }));
+    }
+
+    return [...cricketMatches, ...footballMatches];
+  } catch (error) {
+    console.error('Error fetching finished matches:', error);
+    return [];
+  }
+}
+
+// Fetch sports news
+export async function fetchSportsNews(): Promise<NewsArticle[]> {
+  try {
+    const newsUrl = `${NEWSAPI_BASE_URL}/everything?q=sports+cricket+football&sortBy=publishedAt&pageSize=10&apiKey=${NEWSAPI_KEY}`;
+    const response = await fetch(newsUrl);
+
+    if (!response.ok) {
+      throw new Error(`News API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return (data.articles || []).map((article: any, index: number) => ({
+      id: `news-${index}`,
+      title: article.title || 'No Title',
+      description: article.description || '',
+      url: article.url || '#',
+      imageUrl: article.urlToImage || null,
+      source: article.source?.name || 'Unknown',
+      publishedAt: article.publishedAt || new Date().toISOString(),
+      sport: 'general' as const,
+    }));
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    return [];
+  }
 }
 
 // Get streaming link for a match

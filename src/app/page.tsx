@@ -17,6 +17,7 @@ import { TeamLineups } from '@/components/TeamLineups';
 import { TrendingDashboard } from '@/components/TrendingDashboard';
 import { FinishedMatches } from '@/components/FinishedMatches';
 import { Match, NewsArticle } from '@/types/match';
+import { fetchLiveCricketMatches, fetchLiveFootballMatches, fetchScheduledMatches, fetchFinishedMatches, fetchSportsNews } from '@/lib/apiService';
 import { Trophy, Radio, Bell, Settings, TrendingUp, Calendar, Activity } from 'lucide-react';
 
 export default function Dashboard() {
@@ -32,33 +33,26 @@ export default function Dashboard() {
     { id: '3', title: 'Wicket', message: 'Karachi Kings lost a wicket', time: '32 min ago', read: true },
   ]);
 
-  // Fetch all data
+  // Fetch all data directly from APIs
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Get current date for API calls
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Fetch live, upcoming, and finished matches
-      const [liveRes, scheduledRes, finishedRes, newsRes] = await Promise.all([
-        fetch('/api/sports?sport=all&type=live'),
-        fetch('/api/sports?sport=all&type=scheduled'),
-        fetch('/api/sports?sport=all&type=finished'),
-        fetch('/api/sports?endpoint=news'),
+      // Fetch from external APIs directly (no local API routes on GitHub Pages)
+      const [cricketMatches, footballMatches, scheduledMatches, finishedMatches, newsData] = await Promise.all([
+        fetchLiveCricketMatches().catch(() => []),
+        fetchLiveFootballMatches().catch(() => []),
+        fetchScheduledMatches().catch(() => []),
+        fetchFinishedMatches().catch(() => []),
+        fetchSportsNews().catch(() => []),
       ]);
 
-      const [liveData, scheduledData, finishedData, newsData] = await Promise.all([
-        liveRes.json(),
-        scheduledRes.json(),
-        finishedRes.json(),
-        newsRes.json(),
-      ]);
-
+      // Combine all matches
       const allMatches = [
-        ...(liveData.result || []),
-        ...(scheduledData.result || []),
-        ...(finishedData.result || []),
+        ...cricketMatches,
+        ...footballMatches,
+        ...scheduledMatches,
+        ...finishedMatches,
       ];
 
       // Remove duplicates based on match ID
@@ -67,7 +61,7 @@ export default function Dashboard() {
       );
 
       setMatches(uniqueMatches);
-      setNews(newsData.result || []);
+      setNews(newsData);
       setLastUpdated(new Date());
       
       // Set first live match as active if none selected
