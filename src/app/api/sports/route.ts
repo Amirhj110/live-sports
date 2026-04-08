@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-static';
+export const revalidate = 3600;
+
 // API Keys
 const ALLSPORTS_API_KEY = process.env.ALLSPORTS_API_KEY?.trim() || '';
 const CRICAPI_KEY = process.env.CRICAPI_KEY?.trim() || '';

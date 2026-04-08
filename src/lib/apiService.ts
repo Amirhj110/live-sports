@@ -104,14 +104,22 @@ function mapAllSportsToMatch(data: any, sport: SportType): Match {
   // Get stream URL from API or use fallback
   const streamUrl = data.streamUrl || data.streamLinks?.[0]?.url || '';
 
+  // Extract date and time from startTime
+  const startTimeVal = data.startTime || data.scheduled || new Date().toISOString();
+  const startDate = new Date(startTimeVal);
+  const date = startDate.toISOString().split('T')[0];
+  const time = startDate.toTimeString().slice(0, 5);
+
   return {
     id: data.id || generateId(),
     sport,
     league: data.tournament?.name || data.league?.name || data.league || 'Unknown League',
     status,
+    date,
+    time,
     homeTeam,
     awayTeam,
-    startTime: data.startTime || data.scheduled || new Date().toISOString(),
+    startTime: startTimeVal,
     currentTime: data.currentTime || data.minute?.toString() || '-',
     venue: data.venue?.name || data.venue || 'Unknown Venue',
     events,

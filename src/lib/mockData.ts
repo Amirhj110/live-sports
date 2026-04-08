@@ -1,4 +1,4 @@
-import { Match, SportType } from '@/types/match';
+import { Match, MatchEvent, SportType, EventType } from '@/types/match';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -9,6 +9,8 @@ export const mockMatches: Match[] = [
     sport: 'cricket' as SportType,
     league: 'Pakistan Super League',
     status: 'live',
+    date: '2026-04-03',
+    time: '19:00',
     homeTeam: {
       id: generateId(),
       name: 'Karachi Kings',
@@ -62,6 +64,8 @@ export const mockMatches: Match[] = [
     sport: 'football' as SportType,
     league: 'Premier League',
     status: 'live',
+    date: '2026-04-03',
+    time: '19:00',
     homeTeam: {
       id: generateId(),
       name: 'Manchester City',
@@ -117,6 +121,8 @@ export const mockMatches: Match[] = [
     sport: 'basketball' as SportType,
     league: 'NBA',
     status: 'live',
+    date: '2026-04-03',
+    time: '02:00',
     homeTeam: {
       id: generateId(),
       name: 'Los Angeles Lakers',
@@ -166,6 +172,8 @@ export const mockMatches: Match[] = [
     sport: 'football' as SportType,
     league: 'Premier League',
     status: 'upcoming',
+    date: '2026-04-04',
+    time: '16:30',
     homeTeam: {
       id: generateId(),
       name: 'Liverpool',
@@ -213,16 +221,16 @@ export const updateMatchScore = (match: Match, team: 'home' | 'away'): Match => 
   
   if (match.sport === 'football') {
     // Football: increment goal count
-    const currentScore = parseInt(teamData.score) || 0;
+    const currentScore = parseInt(teamData.score || '0') || 0;
     teamData.score = String(currentScore + 1);
   } else if (match.sport === 'basketball') {
     // Basketball: add 2-3 points
-    const currentScore = parseInt(teamData.score) || 0;
+    const currentScore = parseInt(teamData.score || '0') || 0;
     const points = Math.random() > 0.7 ? 3 : 2;
     teamData.score = String(currentScore + points);
   } else if (match.sport === 'cricket') {
     // Cricket: add runs (simplified)
-    const scoreMatch = teamData.score.match(/(\d+)\/(\d+)/);
+    const scoreMatch = (teamData.score || '').match(/(\d+)\/(\d+)/);
     if (scoreMatch) {
       const runs = parseInt(scoreMatch[1]);
       const wickets = parseInt(scoreMatch[2]);
@@ -240,7 +248,7 @@ export const addRandomEvent = (match: Match): Match => {
   const events = [...updated.events];
   const team = Math.random() > 0.5 ? 'home' : 'away';
   const teamName = team === 'home' ? match.homeTeam.name : match.awayTeam.name;
-  const players = team === 'home' ? match.homeTeam.players : match.awayTeam.players;
+  const players = (team === 'home' ? match.homeTeam.players : match.awayTeam.players) || [];
   const playingPlayers = players.filter(p => p.isPlaying);
   const player = playingPlayers[Math.floor(Math.random() * playingPlayers.length)]?.name || 'Player';
   
@@ -267,9 +275,9 @@ export const addRandomEvent = (match: Match): Match => {
     else description = `Wicket! ${player} is out`;
   }
   
-  const newEvent = {
+  const newEvent: MatchEvent = {
     id: generateId(),
-    type: eventType,
+    type: eventType as EventType,
     minute: Math.floor(Math.random() * 90) + 1,
     description,
     player,

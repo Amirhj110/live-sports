@@ -76,7 +76,7 @@ export function VideoPlayer({ match }: VideoPlayerProps) {
               <p className="text-sm text-gray-400">This stream type requires a native player</p>
               {match.streamUrl && (
                 <button
-                  onClick={() => window.open(match.streamUrl, '_blank')}
+                  onClick={() => match.streamUrl && window.open(match.streamUrl, '_blank')}
                   className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors"
                 >
                   Open in New Tab
