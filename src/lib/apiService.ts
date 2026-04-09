@@ -10,7 +10,7 @@ const FOOTBALL_BASE_URL = 'https://allsportsapi.com/api';
 const CRICKET_BASE_URL = 'https://api.cricketdata.org/v1';
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 
-// Mock data for fallback when APIs fail
+// Mock data for fallback when APIs fail (v2)
 const mockLiveMatches: Match[] = [
   {
     id: 'mock-1',
