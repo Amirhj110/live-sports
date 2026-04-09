@@ -3,7 +3,7 @@ import { Match, SportType, Team, MatchEvent, Player, NewsArticle } from '@/types
 // API Keys - Read from environment variables (set in GitHub Secrets)
 const ALLSPORTS_API_KEY = process.env.NEXT_PUBLIC_FOOTBALL_API_KEY || '';
 const CRICAPI_KEY = process.env.NEXT_PUBLIC_CRICKET_API_KEY || '';
-const NEWSAPI_KEY = process.env.NEWSAPI_KEY || '';
+const NEWSAPI_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY || process.env.NEWSAPI_KEY || '';
 
 // Base URLs
 const ALLSPORTS_BASE_URL = 'https://allsportsapi.com/api';
@@ -140,7 +140,10 @@ function mapAllSportsToMatch(data: any, sport: SportType): Match {
 export async function fetchLiveCricketMatches(): Promise<Match[]> {
   try {
     const cricapiUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
-    const response = await fetch(cricapiUrl, { headers: { 'Accept': 'application/json' } });
+    const response = await fetch(cricapiUrl, { 
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
@@ -240,6 +243,7 @@ export async function fetchLiveFootballMatches(): Promise<Match[]> {
         'X-RapidAPI-Key': ALLSPORTS_API_KEY,
         'X-RapidAPI-Host': 'allsportsapi.com',
       },
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -387,14 +391,204 @@ export async function fetchScheduledMatches(): Promise<Match[]> {
   }
 }
 
-// Fetch all live matches (combined)
+// Fetch live tennis matches
+export async function fetchLiveTennisMatches(): Promise<Match[]> {
+  try {
+    const fullUrl = `${ALLSPORTS_BASE_URL}/tennis/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    
+    const response = await fetch(fullUrl, {
+      headers: {
+        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Host': 'allsportsapi.com',
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    const matches = (data.result || []).map((m: any) => ({
+      id: m.event_key,
+      sport: 'tennis' as const,
+      league: m.league_name || 'ATP/WTA',
+      status: getFootballStatus(m.event_status),
+      date: m.event_date || new Date().toISOString(),
+      time: m.event_time || 'TBD',
+      homeTeam: {
+        id: m.event_home_team,
+        name: m.event_home_team || 'Player 1',
+        shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[0]?.trim() || m.event_live || '0',
+        color: '#22c55e',
+        flag: null,
+      },
+      awayTeam: {
+        id: m.event_away_team,
+        name: m.event_away_team || 'Player 2',
+        shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[1]?.trim() || '0',
+        color: '#f59e0b',
+        flag: null,
+      },
+      currentTime: m.event_status || '-',
+      venue: m.event_stadium || 'Unknown Venue',
+      events: [],
+      streamUrl: null,
+    }));
+    
+    return matches.filter((m: Match) => m.status === 'live');
+  } catch (error) {
+    console.error('Error fetching tennis matches:', error);
+    return [];
+  }
+}
+
+// Fetch live basketball matches
+export async function fetchLiveBasketballMatches(): Promise<Match[]> {
+  try {
+    const fullUrl = `${ALLSPORTS_BASE_URL}/basketball/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    
+    const response = await fetch(fullUrl, {
+      headers: {
+        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Host': 'allsportsapi.com',
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    const matches = (data.result || []).map((m: any) => ({
+      id: m.event_key,
+      sport: 'basketball' as const,
+      league: m.league_name || 'NBA',
+      status: getFootballStatus(m.event_status),
+      date: m.event_date || new Date().toISOString(),
+      time: m.event_time || 'TBD',
+      homeTeam: {
+        id: m.event_home_team,
+        name: m.event_home_team || 'Home',
+        shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[0]?.trim() || m.event_live || '0',
+        color: '#f97316',
+        flag: null,
+      },
+      awayTeam: {
+        id: m.event_away_team,
+        name: m.event_away_team || 'Away',
+        shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[1]?.trim() || '0',
+        color: '#8b5cf6',
+        flag: null,
+      },
+      currentTime: m.event_status || '-',
+      venue: m.event_stadium || 'Unknown Venue',
+      events: [],
+      streamUrl: null,
+    }));
+    
+    return matches.filter((m: Match) => m.status === 'live');
+  } catch (error) {
+    console.error('Error fetching basketball matches:', error);
+    return [];
+  }
+}
+
+// Fetch live volleyball matches
+export async function fetchLiveVolleyballMatches(): Promise<Match[]> {
+  try {
+    const fullUrl = `${ALLSPORTS_BASE_URL}/volleyball/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    
+    const response = await fetch(fullUrl, {
+      headers: {
+        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Host': 'allsportsapi.com',
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    const matches = (data.result || []).map((m: any) => ({
+      id: m.event_key,
+      sport: 'volleyball' as const,
+      league: m.league_name || 'FIVB',
+      status: getFootballStatus(m.event_status),
+      date: m.event_date || new Date().toISOString(),
+      time: m.event_time || 'TBD',
+      homeTeam: {
+        id: m.event_home_team,
+        name: m.event_home_team || 'Home',
+        shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[0]?.trim() || m.event_live || '0',
+        color: '#06b6d4',
+        flag: null,
+      },
+      awayTeam: {
+        id: m.event_away_team,
+        name: m.event_away_team || 'Away',
+        shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
+        score: m.event_final_result?.split('-')[1]?.trim() || '0',
+        color: '#ec4899',
+        flag: null,
+      },
+      currentTime: m.event_status || '-',
+      venue: m.event_stadium || 'Unknown Venue',
+      events: [],
+      streamUrl: null,
+    }));
+    
+    return matches.filter((m: Match) => m.status === 'live');
+  } catch (error) {
+    console.error('Error fetching volleyball matches:', error);
+    return [];
+  }
+}
+
+// Fetch all live matches (combined - multi-sport)
 export async function fetchAllLiveMatches(): Promise<Match[]> {
-  const [cricket, football] = await Promise.all([
-    fetchLiveCricketMatches(),
-    fetchLiveFootballMatches(),
+  const [cricket, football, tennis, basketball, volleyball] = await Promise.all([
+    fetchLiveCricketMatches().catch(() => []),
+    fetchLiveFootballMatches().catch(() => []),
+    fetchLiveTennisMatches().catch(() => []),
+    fetchLiveBasketballMatches().catch(() => []),
+    fetchLiveVolleyballMatches().catch(() => []),
   ]);
   
-  return [...cricket, ...football];
+  const allMatches = [...cricket, ...football, ...tennis, ...basketball, ...volleyball];
+  
+  // Prioritize: Cricket (PSL/IPL) > Football > Others
+  return allMatches.sort((a, b) => {
+    const aIsPSL = a.league?.toLowerCase().includes('super league') || a.league?.toLowerCase().includes('psl');
+    const bIsPSL = b.league?.toLowerCase().includes('super league') || b.league?.toLowerCase().includes('psl');
+    const aIsIPL = a.league?.toLowerCase().includes('indian premier') || a.league?.toLowerCase().includes('ipl');
+    const bIsIPL = b.league?.toLowerCase().includes('indian premier') || b.league?.toLowerCase().includes('ipl');
+    const aIsCricket = a.sport === 'cricket';
+    const bIsCricket = b.sport === 'cricket';
+    const aIsFootball = a.sport === 'football';
+    const bIsFootball = b.sport === 'football';
+    
+    if (aIsPSL && !bIsPSL) return -1;
+    if (!aIsPSL && bIsPSL) return 1;
+    if (aIsIPL && !bIsIPL) return -1;
+    if (!aIsIPL && bIsIPL) return 1;
+    if (aIsCricket && !bIsCricket) return -1;
+    if (!aIsCricket && bIsCricket) return 1;
+    if (aIsFootball && !bIsFootball) return -1;
+    if (!aIsFootball && bIsFootball) return 1;
+    return 0;
+  });
 }
 
 // Fetch finished/recently completed matches
@@ -501,8 +695,8 @@ export async function fetchFinishedMatches(): Promise<Match[]> {
 // Fetch sports news
 export async function fetchSportsNews(): Promise<NewsArticle[]> {
   try {
-    const newsUrl = `${NEWSAPI_BASE_URL}/everything?q=sports+cricket+football&sortBy=publishedAt&pageSize=10&apiKey=${NEWSAPI_KEY}`;
-    const response = await fetch(newsUrl);
+    const newsUrl = `${NEWSAPI_BASE_URL}/everything?q=sports+cricket+football+tennis+basketball&sortBy=publishedAt&pageSize=10&apiKey=${NEWSAPI_KEY}`;
+    const response = await fetch(newsUrl, { cache: 'no-store' });
 
     if (!response.ok) {
       throw new Error(`News API error: ${response.status}`);
