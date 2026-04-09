@@ -1,7 +1,7 @@
 import { Match, SportType, Team, MatchEvent, Player, NewsArticle } from '@/types/match';
 
 // API Keys - Read from environment variables (set in GitHub Secrets)
-const ALLSPORTS_API_KEY = process.env.X_RAPIDAPI_KEY || '';
+const ALLSPORTS_API_KEY = process.env.NEXT_PUBLIC_FOOTBALL_API_KEY || '';
 const CRICAPI_KEY = process.env.NEXT_PUBLIC_CRICKET_API_KEY || '';
 const NEWSAPI_KEY = process.env.NEWSAPI_KEY || '';
 
