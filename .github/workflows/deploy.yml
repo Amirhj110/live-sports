@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -20,13 +20,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - name: Build with API keys
         env:
           X_RAPIDAPI_KEY: ${{ secrets.X_RAPIDAPI_KEY }}
           NEXT_PUBLIC_CRICKET_API_KEY: ${{ secrets.NEXT_PUBLIC_CRICKET_API_KEY }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
