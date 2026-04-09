@@ -1,9 +1,9 @@
 import { Match, SportType, Team, MatchEvent, Player, NewsArticle } from '@/types/match';
 
-// API Keys - Hardcoded for GitHub Pages deployment
-const ALLSPORTS_API_KEY = 'd09a6c7f46msh003f3f724580917p1a11d6jsnb95458edf64d';
-const CRICAPI_KEY = 'f83068c1-8071-42b5-b698-744f85a96ae6';
-const NEWSAPI_KEY = 'fa20f937e6354fcca7dfb82c0a4f2b9a';
+// API Keys - Read from environment variables (set in GitHub Secrets)
+const ALLSPORTS_API_KEY = process.env.X_RAPIDAPI_KEY || '';
+const CRICAPI_KEY = process.env.NEXT_PUBLIC_CRICKET_API_KEY || '';
+const NEWSAPI_KEY = process.env.NEWSAPI_KEY || '';
 
 // Base URLs
 const ALLSPORTS_BASE_URL = 'https://allsportsapi.com/api';

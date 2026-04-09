@@ -22,7 +22,12 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - run: npm run build
+      - name: Build with API keys
+        env:
+          X_RAPIDAPI_KEY: ${{ secrets.X_RAPIDAPI_KEY }}
+          NEXT_PUBLIC_CRICKET_API_KEY: ${{ secrets.NEXT_PUBLIC_CRICKET_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+        run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
