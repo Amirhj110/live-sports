@@ -2,7 +2,8 @@
 
 import { Match } from '@/types/match';
 import { motion } from 'framer-motion';
-import { Activity, Circle, Clock } from 'lucide-react';
+import { Activity, Circle, Clock, Goal, Trophy } from 'lucide-react';
+import Image from 'next/image';
 
 interface MatchCardProps {
   match: Match;
@@ -10,10 +11,22 @@ interface MatchCardProps {
   onClick: () => void;
 }
 
-const sportIcons: Record<string, string> = {
-  cricket: '🏏',
-  football: '⚽',
-  basketball: '🏀',
+// Sport icons using Lucide React
+const SportIcon = ({ sport }: { sport: string }) => {
+  switch (sport) {
+    case 'football':
+      return <Goal className="w-4 h-4 text-green-400" />;
+    case 'cricket':
+      return <Trophy className="w-4 h-4 text-yellow-400" />;
+    case 'tennis':
+      return <span className="text-yellow-400">🎾</span>;
+    case 'basketball':
+      return <span className="text-orange-400">🏀</span>;
+    case 'volleyball':
+      return <span className="text-cyan-400">🏐</span>;
+    default:
+      return <Activity className="w-4 h-4 text-blue-400" />;
+  }
 };
 
 export function MatchCard({ match, isActive, onClick }: MatchCardProps) {
@@ -46,45 +59,73 @@ export function MatchCard({ match, isActive, onClick }: MatchCardProps) {
 
       {/* Sport Icon & League */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">{sportIcons[match.sport]}</span>
+        <SportIcon sport={match.sport} />
         <span className="text-xs text-gray-400 font-medium truncate">{match.league}</span>
       </div>
 
-      {/* Teams & Scores */}
+      {/* Teams & Scores - Unified for all sports */}
       <div className="space-y-2">
         {/* Home Team */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div 
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ backgroundColor: match.homeTeam.color }}
-            >
-              {match.homeTeam.shortName[0]}
-            </div>
+            {match.homeTeam.logo ? (
+              <div className="w-6 h-6 relative rounded-full overflow-hidden bg-white/10">
+                <Image
+                  src={match.homeTeam.logo}
+                  alt={match.homeTeam.shortName}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div 
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{ backgroundColor: match.homeTeam.color }}
+              >
+                {match.homeTeam.shortName[0]}
+              </div>
+            )}
             <span className="text-sm font-medium text-white truncate max-w-[100px]">
               {match.homeTeam.shortName}
             </span>
           </div>
           <span className="text-lg font-bold text-white">
-            {match.homeTeam.score}
+            {match.sport === 'cricket' && match.homeTeam.wickets !== undefined
+              ? `${match.homeTeam.score}/${match.homeTeam.wickets}`
+              : match.homeTeam.score}
           </span>
         </div>
 
         {/* Away Team */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div 
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ backgroundColor: match.awayTeam.color }}
-            >
-              {match.awayTeam.shortName[0]}
-            </div>
+            {match.awayTeam.logo ? (
+              <div className="w-6 h-6 relative rounded-full overflow-hidden bg-white/10">
+                <Image
+                  src={match.awayTeam.logo}
+                  alt={match.awayTeam.shortName}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div 
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{ backgroundColor: match.awayTeam.color }}
+              >
+                {match.awayTeam.shortName[0]}
+              </div>
+            )}
             <span className="text-sm font-medium text-white truncate max-w-[100px]">
               {match.awayTeam.shortName}
             </span>
           </div>
           <span className="text-lg font-bold text-white">
-            {match.awayTeam.score}
+            {match.sport === 'cricket' && match.awayTeam.wickets !== undefined
+              ? `${match.awayTeam.score}/${match.awayTeam.wickets}`
+              : match.awayTeam.score}
           </span>
         </div>
       </div>

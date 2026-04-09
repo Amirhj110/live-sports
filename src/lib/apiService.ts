@@ -1,14 +1,14 @@
 import { Match, SportType, Team, MatchEvent, Player, NewsArticle } from '@/types/match';
 
 // API Keys - Read from environment variables (set in GitHub Secrets)
-const ALLSPORTS_API_KEY = process.env.NEXT_PUBLIC_FOOTBALL_API_KEY || '';
-const CRICAPI_KEY = process.env.NEXT_PUBLIC_CRICKET_API_KEY || '';
-const NEWSAPI_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY || process.env.NEWSAPI_KEY || '';
+const FOOTBALL_API_KEY = process.env.NEXT_PUBLIC_FOOTBALL_API_KEY || '';
+const CRICKET_API_KEY = process.env.NEXT_PUBLIC_CRICKET_API_KEY || '';
+const GNEWS_API_KEY = process.env.NEXT_PUBLIC_GNEWSPAI_KEY || '';
 
 // Base URLs
-const ALLSPORTS_BASE_URL = 'https://allsportsapi.com/api';
-const CRICAPI_BASE_URL = 'https://api.cricapi.com/v1';
-const NEWSAPI_BASE_URL = 'https://newsapi.org/v2';
+const FOOTBALL_BASE_URL = 'https://sportapi7.p.rapidapi.com';
+const CRICKET_BASE_URL = 'https://api.cricketdata.org/v1';
+const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 
 interface AllSportsMatch {
   id: string;
@@ -136,60 +136,57 @@ function mapAllSportsToMatch(data: any, sport: SportType): Match {
   };
 }
 
-// Fetch live cricket matches
+// Fetch live cricket matches from CricketData.org
 export async function fetchLiveCricketMatches(): Promise<Match[]> {
   try {
-    const cricapiUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
-    const response = await fetch(cricapiUrl, { 
+    const response = await fetch(`${CRICKET_BASE_URL}/currentMatches?apikey=${CRICKET_API_KEY}`, {
       headers: { 'Accept': 'application/json' },
       cache: 'no-store'
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      throw new Error(`Cricket API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (data.status === 'failure') {
-      console.error('CricAPI error:', data.reason);
-      return [];
-    }
-
     // Transform API response to Match type
-    const matches = (data.data || []).map((m: any) => {
-      const homeTeamInfo = m.teamInfo?.find((t: any) => t.name === m.teams?.[0]) || {};
-      const awayTeamInfo = m.teamInfo?.find((t: any) => t.name === m.teams?.[1]) || {};
+    const matches = (data.matches || data.data || []).map((m: any) => {
+      const homeTeamInfo = m.teamInfo?.find((t: any) => t.name === m.teams?.[0]) || m.teamInfo?.[0] || {};
+      const awayTeamInfo = m.teamInfo?.find((t: any) => t.name === m.teams?.[1]) || m.teamInfo?.[1] || {};
+      
+      const homeScore = m.score?.[0] || m.score?.home || {};
+      const awayScore = m.score?.[1] || m.score?.away || {};
       
       return {
-        id: m.id,
+        id: m.id || m.match_id,
         sport: 'cricket' as const,
-        league: m.series || 'International',
-        status: getCricketStatus(m.status),
-        date: m.date || new Date().toISOString().split('T')[0],
-        time: m.dateTimeGMT ? new Date(m.dateTimeGMT).toLocaleTimeString() : 'TBD',
+        league: m.series || m.tournament || 'International',
+        status: getCricketStatus(m.status || m.match_status),
+        date: m.date || m.match_date || new Date().toISOString().split('T')[0],
+        time: m.dateTimeGMT || m.match_time ? new Date(m.dateTimeGMT || m.match_time).toLocaleTimeString() : 'TBD',
         homeTeam: {
           id: homeTeamInfo.id || m.teams?.[0],
-          name: m.teams?.[0] || 'TBD',
-          shortName: homeTeamInfo.shortname || m.teams?.[0]?.substring(0, 3).toUpperCase(),
-          score: m.score?.[0]?.r || '0',
-          wickets: m.score?.[0]?.w || '0',
-          overs: m.score?.[0]?.o || '0',
+          name: m.teams?.[0] || homeTeamInfo.name || 'TBD',
+          shortName: homeTeamInfo.shortname || m.teams?.[0]?.substring(0, 3).toUpperCase() || 'HOM',
+          score: homeScore.r || homeScore.runs || '0',
+          wickets: homeScore.w || homeScore.wickets || '0',
+          overs: homeScore.o || homeScore.overs || '0',
           color: '#1e40af',
-          flag: homeTeamInfo.img || null,
+          logo: homeTeamInfo.img || homeTeamInfo.image || null,
         },
         awayTeam: {
           id: awayTeamInfo.id || m.teams?.[1],
-          name: m.teams?.[1] || 'TBD',
-          shortName: awayTeamInfo.shortname || m.teams?.[1]?.substring(0, 3).toUpperCase(),
-          score: m.score?.[1]?.r || '0',
-          wickets: m.score?.[1]?.w || '0',
-          overs: m.score?.[1]?.o || '0',
+          name: m.teams?.[1] || awayTeamInfo.name || 'TBD',
+          shortName: awayTeamInfo.shortname || m.teams?.[1]?.substring(0, 3).toUpperCase() || 'AWY',
+          score: awayScore.r || awayScore.runs || '0',
+          wickets: awayScore.w || awayScore.wickets || '0',
+          overs: awayScore.o || awayScore.overs || '0',
           color: '#dc2626',
-          flag: awayTeamInfo.img || null,
+          logo: awayTeamInfo.img || awayTeamInfo.image || null,
         },
-        currentTime: m.status || '-',
-        venue: m.venue || 'Unknown Venue',
+        currentTime: m.status || m.match_status || '-',
+        venue: m.venue || m.stadium || 'Unknown Venue',
         events: [],
         streamUrl: null,
       };
@@ -199,13 +196,13 @@ export async function fetchLiveCricketMatches(): Promise<Match[]> {
     return matches.sort((a: Match, b: Match) => {
       const aIsPSL = a.league?.toLowerCase().includes('super league') || a.league?.toLowerCase().includes('psl');
       const bIsPSL = b.league?.toLowerCase().includes('super league') || b.league?.toLowerCase().includes('psl');
-      const aIsIntl = a.league?.toLowerCase().includes('international') || a.league?.toLowerCase().includes('icc');
-      const bIsIntl = b.league?.toLowerCase().includes('international') || b.league?.toLowerCase().includes('icc');
+      const aIsIPL = a.league?.toLowerCase().includes('indian premier') || a.league?.toLowerCase().includes('ipl');
+      const bIsIPL = b.league?.toLowerCase().includes('indian premier') || b.league?.toLowerCase().includes('ipl');
       
       if (aIsPSL && !bIsPSL) return -1;
       if (!aIsPSL && bIsPSL) return 1;
-      if (aIsIntl && !bIsIntl) return -1;
-      if (!aIsIntl && bIsIntl) return 1;
+      if (aIsIPL && !bIsIPL) return -1;
+      if (!aIsIPL && bIsIPL) return 1;
       return 0;
     });
   } catch (error) {
@@ -232,58 +229,61 @@ function getFootballStatus(status: string): 'live' | 'upcoming' | 'finished' {
   return 'upcoming';
 }
 
-// Fetch live football matches
+// Fetch live football matches from RapidAPI (SofaScore)
 export async function fetchLiveFootballMatches(): Promise<Match[]> {
   try {
-    const date = new Date().toISOString().split('T')[0];
-    const fullUrl = `${ALLSPORTS_BASE_URL}/football/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
-    
-    const response = await fetch(fullUrl, {
+    const response = await fetch(`${FOOTBALL_BASE_URL}/api/v1/event/live`, {
       headers: {
-        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
-        'X-RapidAPI-Host': 'allsportsapi.com',
+        'x-rapidapi-host': 'sportapi7.p.rapidapi.com',
+        'x-rapidapi-key': FOOTBALL_API_KEY,
       },
       cache: 'no-store'
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      throw new Error(`Football API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    const matches = (data.result || []).map((m: any) => ({
-      id: m.event_key,
-      sport: 'football' as const,
-      league: m.league_name || 'Unknown League',
-      status: getFootballStatus(m.event_status),
-      date: m.event_date || new Date().toISOString(),
-      time: m.event_time || 'TBD',
-      homeTeam: {
-        id: m.event_home_team,
-        name: m.event_home_team || 'Home',
-        shortName: m.event_home_team?.substring(0, 3).toUpperCase(),
-        score: m.event_final_result?.split('-')[0]?.trim() || m.event_live || '0',
-        color: '#2563eb',
-        flag: null,
-      },
-      awayTeam: {
-        id: m.event_away_team,
-        name: m.event_away_team || 'Away',
-        shortName: m.event_away_team?.substring(0, 3).toUpperCase(),
-        score: m.event_final_result?.split('-')[1]?.trim() || '0',
-        color: '#dc2626',
-        flag: null,
-      },
-      currentTime: m.event_status || '-',
-      venue: m.event_stadium || 'Unknown Venue',
-      events: [],
-      streamUrl: null,
-    }));
+    const matches = (data.events || []).map((m: any) => {
+      const homeTeamId = m.homeTeam?.id || m.homeTeam?.slug;
+      const awayTeamId = m.awayTeam?.id || m.awayTeam?.slug;
+      
+      return {
+        id: m.id?.toString() || Math.random().toString(36).substring(2, 9),
+        sport: 'football' as const,
+        league: m.tournament?.name || m.tournament?.uniqueName || 'Unknown League',
+        status: m.status?.type === 'inprogress' ? 'live' : m.status?.type === 'finished' ? 'finished' : 'upcoming',
+        date: new Date(m.startTimestamp * 1000).toISOString().split('T')[0],
+        time: new Date(m.startTimestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        homeTeam: {
+          id: homeTeamId,
+          name: m.homeTeam?.name || 'Home',
+          shortName: m.homeTeam?.shortName || m.homeTeam?.name?.substring(0, 3).toUpperCase() || 'HOM',
+          score: m.homeScore?.current?.toString() || m.homeScore?.period1?.toString() || '0',
+          logo: homeTeamId ? `https://api.sofascore.app/api/v1/team/${homeTeamId}/image` : null,
+          color: '#2563eb',
+        },
+        awayTeam: {
+          id: awayTeamId,
+          name: m.awayTeam?.name || 'Away',
+          shortName: m.awayTeam?.shortName || m.awayTeam?.name?.substring(0, 3).toUpperCase() || 'AWY',
+          score: m.awayScore?.current?.toString() || m.awayScore?.period1?.toString() || '0',
+          logo: awayTeamId ? `https://api.sofascore.app/api/v1/team/${awayTeamId}/image` : null,
+          color: '#dc2626',
+        },
+        currentTime: m.time?.currentPeriodTime || m.status?.description || '-',
+        venue: m.venue?.name || 'Unknown Venue',
+        events: [],
+        streamUrl: null,
+      };
+    });
     
-    // Prioritize major leagues
-    const majorLeagues = ['premier league', 'la liga', 'serie a', 'bundesliga', 'champions league'];
-    return matches.sort((a: Match, b: Match) => {
+    // Filter only live matches and prioritize major leagues
+    const liveMatches = matches.filter((m: Match) => m.status === 'live');
+    const majorLeagues = ['premier league', 'la liga', 'serie a', 'bundesliga', 'champions league', 'world cup'];
+    return liveMatches.sort((a: Match, b: Match) => {
       const aPriority = majorLeagues.findIndex(l => a.league?.toLowerCase().includes(l));
       const bPriority = majorLeagues.findIndex(l => b.league?.toLowerCase().includes(l));
       return (aPriority === -1 ? 999 : aPriority) - (bPriority === -1 ? 999 : bPriority);
@@ -300,7 +300,7 @@ export async function fetchScheduledMatches(): Promise<Match[]> {
     const date = new Date().toISOString().split('T')[0];
     
     // Fetch cricket scheduled
-    const cricketUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
+    const cricketUrl = `${CRICKET_BASE_URL}/currentMatches?apikey=${CRICKET_API_KEY}&offset=0`;
     const cricketResponse = await fetch(cricketUrl).catch(() => null);
     let cricketMatches: Match[] = [];
     if (cricketResponse?.ok) {
@@ -341,10 +341,10 @@ export async function fetchScheduledMatches(): Promise<Match[]> {
     }
 
     // Fetch football scheduled
-    const footballUrl = `${ALLSPORTS_BASE_URL}/football/?met=Fixtures&APIkey=${ALLSPORTS_API_KEY}&from=${date}&to=${date}`;
+    const footballUrl = `${FOOTBALL_BASE_URL}/football/?met=Fixtures&APIkey=${FOOTBALL_API_KEY}&from=${date}&to=${date}`;
     const footballResponse = await fetch(footballUrl, {
       headers: {
-        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Key': FOOTBALL_API_KEY,
         'X-RapidAPI-Host': 'allsportsapi.com',
       },
     }).catch(() => null);
@@ -394,11 +394,11 @@ export async function fetchScheduledMatches(): Promise<Match[]> {
 // Fetch live tennis matches
 export async function fetchLiveTennisMatches(): Promise<Match[]> {
   try {
-    const fullUrl = `${ALLSPORTS_BASE_URL}/tennis/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    const fullUrl = `${FOOTBALL_BASE_URL}/tennis/?met=Livescore&APIkey=${FOOTBALL_API_KEY}`;
     
     const response = await fetch(fullUrl, {
       headers: {
-        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Key': FOOTBALL_API_KEY,
         'X-RapidAPI-Host': 'allsportsapi.com',
       },
       cache: 'no-store'
@@ -449,11 +449,11 @@ export async function fetchLiveTennisMatches(): Promise<Match[]> {
 // Fetch live basketball matches
 export async function fetchLiveBasketballMatches(): Promise<Match[]> {
   try {
-    const fullUrl = `${ALLSPORTS_BASE_URL}/basketball/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    const fullUrl = `${FOOTBALL_BASE_URL}/basketball/?met=Livescore&APIkey=${FOOTBALL_API_KEY}`;
     
     const response = await fetch(fullUrl, {
       headers: {
-        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Key': FOOTBALL_API_KEY,
         'X-RapidAPI-Host': 'allsportsapi.com',
       },
       cache: 'no-store'
@@ -504,11 +504,11 @@ export async function fetchLiveBasketballMatches(): Promise<Match[]> {
 // Fetch live volleyball matches
 export async function fetchLiveVolleyballMatches(): Promise<Match[]> {
   try {
-    const fullUrl = `${ALLSPORTS_BASE_URL}/volleyball/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    const fullUrl = `${FOOTBALL_BASE_URL}/volleyball/?met=Livescore&APIkey=${FOOTBALL_API_KEY}`;
     
     const response = await fetch(fullUrl, {
       headers: {
-        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Key': FOOTBALL_API_KEY,
         'X-RapidAPI-Host': 'allsportsapi.com',
       },
       cache: 'no-store'
@@ -597,7 +597,7 @@ export async function fetchFinishedMatches(): Promise<Match[]> {
     const date = new Date().toISOString().split('T')[0];
     
     // Fetch cricket finished matches
-    const cricketUrl = `${CRICAPI_BASE_URL}/currentMatches?apikey=${CRICAPI_KEY}&offset=0`;
+    const cricketUrl = `${CRICKET_BASE_URL}/currentMatches?apikey=${CRICKET_API_KEY}&offset=0`;
     const cricketResponse = await fetch(cricketUrl).catch(() => null);
     let cricketMatches: Match[] = [];
     if (cricketResponse?.ok) {
@@ -642,10 +642,10 @@ export async function fetchFinishedMatches(): Promise<Match[]> {
     }
 
     // Fetch football finished matches
-    const footballUrl = `${ALLSPORTS_BASE_URL}/football/?met=Livescore&APIkey=${ALLSPORTS_API_KEY}`;
+    const footballUrl = `${FOOTBALL_BASE_URL}/football/?met=Livescore&APIkey=${FOOTBALL_API_KEY}`;
     const footballResponse = await fetch(footballUrl, {
       headers: {
-        'X-RapidAPI-Key': ALLSPORTS_API_KEY,
+        'X-RapidAPI-Key': FOOTBALL_API_KEY,
         'X-RapidAPI-Host': 'allsportsapi.com',
       },
     }).catch(() => null);
@@ -692,24 +692,25 @@ export async function fetchFinishedMatches(): Promise<Match[]> {
   }
 }
 
-// Fetch sports news
+// Fetch sports news from GNews
 export async function fetchSportsNews(): Promise<NewsArticle[]> {
   try {
-    const newsUrl = `${NEWSAPI_BASE_URL}/everything?q=sports+cricket+football+tennis+basketball&sortBy=publishedAt&pageSize=10&apiKey=${NEWSAPI_KEY}`;
+    // GNews API uses 'token' parameter instead of 'apiKey'
+    const newsUrl = `${GNEWS_BASE_URL}/search?q=sports+cricket+football+soccer&sortby=publishedAt&max=10&token=${GNEWS_API_KEY}`;
     const response = await fetch(newsUrl, { cache: 'no-store' });
 
     if (!response.ok) {
-      throw new Error(`News API error: ${response.status}`);
+      throw new Error(`GNews API error: ${response.status}`);
     }
 
     const data = await response.json();
     
     return (data.articles || []).map((article: any, index: number) => ({
-      id: `news-${index}`,
+      id: `news-${index}-${Date.now()}`,
       title: article.title || 'No Title',
-      description: article.description || '',
+      description: article.description || article.content || '',
       url: article.url || '#',
-      imageUrl: article.urlToImage || null,
+      imageUrl: article.image || null,
       source: article.source?.name || 'Unknown',
       publishedAt: article.publishedAt || new Date().toISOString(),
       sport: 'general' as const,
